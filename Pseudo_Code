@@ -1,1 +1,123 @@
+#####################################################
+#   Steps needed to fit a cluster expansion model   #
+#####################################################
+Step 1. read in data
+    Functions needed:
+        1) parse_data: read in structures from data_file and create list of metadata for further counting
+            Input: data_file, cluster_file
+            Output: N-dim list of names, enrgs, comps, vols; pos(dictionary); POS(N * pos); ClustLst(M * (site, decoration, chemistry/spin))
+Step 2. count clusters
+    Functions needed:
+        1) group_symmetry: find all the symmetries for the given sructures and clusters
+            Input: pos, ClustLst
+            Output: multiplicity, symmetry operations
+        2) count_clusters: 
+            Input: POS(N-dim), ClustLst(M-dim)
+            Output: counts(N * M)
+Step 3. fitting
+    Functions needed:
+        1) ce_fit: LASSO or RIDGE fit
+            Input: POS, ClustLst, enrgs, counts
+            Output: cluster_out, eci_out, fit_out
+        2) write_data: 
+            Input: cluster_out, eci_out, fit_out
+            Output: write cluster.out, eci.out, fit.out files
+            
+##############################
+#          Overview          #
+##############################
+Included Libraries:
+  pathlib
+Python files:
+  cefit.py
+  parse.py
+  count.py
+  symop.py
+Input files:
+  data.in
+  cluster.in
+Output files:
+  cluster.out
+  eci.out
+  fit.out
+
+##############################
+#          cefit.py          #
+##############################
+// Include dependencies //
+from pathlib import Path
+import parse 
+import count
+
+// functions //
+lasso_fit(string: K-fold, string: penalty)
+
+ridge_fit(string: K-fold, string: penalty)
+
+write_output(string: clust_out, string: fit_out, string: eci_out)
+
+
+// main //
+pos_Dict = {'names', 'enrgs', 'comps', 'vols', 'base', 'pos', 'site_index', 'species', 'spins'}
+pos_List, clust_List, count_List = []
+
+pos_List = parse.parse_pos(data.in)
+clust_List = parse.parse_clust(cluster.in) 
+count_List = count(pos_List, clust_List)
+clust_out, eic_out, fit_out = lasso_fit(K-fole, penalty)
+write_output(clust_out, eci_out, fit_out)
+
+
+##############################
+#          parse.py          #
+##############################
+// Include dependencies //
+from pathlib import Path
+
+// functions //
+parse_pos(string: filename)
+
+parse_clust(string: filename) 
+
+
+##############################
+#          count.py          #
+##############################
+// Include dependencies //
+from pathlib import Path
+import symop.py
+
+//functions //
+count_chem(list: pos, list: clust_List)
+    
+    iterate over all sites for a given structure
+    for each site, extended_site = site + cluster_vector
+    apply PBC to get the species on each cluster
+    apply symop to get symmetry equivalent cluster
+    
+count_spin(list: pos, list: clust_List)
+
+
+##############################
+#          symop.py          #
+##############################
+// Include dependencies //
+from pathlib import Path
+
+// functions //
+find_symmetry(dictionary: pos_Dict, list: clust_List)
+    for a given structure and cluster
+    find the space group of the structure
+    find all the symmetry equivalent clusters
+
+
+
+
+
+
+
+
+
+
+
 
