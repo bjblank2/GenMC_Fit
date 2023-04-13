@@ -65,7 +65,7 @@ pos_List, clust_List, count_List = []
 pos_List = parse.parse_pos(data.in)
 clust_List = parse.parse_clust(cluster.in) 
 count_List = count(pos_List, clust_List)
-clust_out, eic_out, fit_out = lasso_fit(K-fole, penalty)
+clust_out, eci_out, fit_out = lasso_fit(K-fole, penalty)
 write_output(clust_out, eci_out, fit_out)
 
 
