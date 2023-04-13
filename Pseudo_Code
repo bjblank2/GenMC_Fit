@@ -51,14 +51,15 @@ import count
 
 // functions //
 lasso_fit(string: K-fold, string: penalty)
-
+        use lasso regression to fit E=sum(clusters * ecis)
+        
 ridge_fit(string: K-fold, string: penalty)
 
 write_output(string: clust_out, string: fit_out, string: eci_out)
 
 
 // main //
-pos_Dict = {'names', 'enrgs', 'comps', 'vols', 'base', 'pos', 'site_index', 'species', 'spins'}
+pos_Dict = {'names', 'enrgs', 'comps', 'vols', 'base', 'site_index', 'site_pos', 'species', 'spins'}
 pos_List, clust_List, count_List = []
 
 pos_List = parse.parse_pos(data.in)
@@ -75,10 +76,11 @@ write_output(clust_out, eci_out, fit_out)
 from pathlib import Path
 
 // functions //
-parse_pos(string: filename)
-
-parse_clust(string: filename) 
-
+parse_pos(string: data.in)
+    convert data.in file to pos_List
+    
+parse_clust(string: cluster.in) 
+    convert cluster.in file to clust_List
 
 ##############################
 #          count.py          #
@@ -87,15 +89,34 @@ parse_clust(string: filename)
 from pathlib import Path
 import symop.py
 
-//functions //
+// functions //
 count_chem(list: pos, list: clust_List)
-    
-    iterate over all sites for a given structure
-    for each site, extended_site = site + cluster_vector
-    apply PBC to get the species on each cluster
+    iterate over all sites of a given structure
+    for each site, extended_site = site + cluster_vector, then apply PBC to get the species on each cluster
     apply symop to get symmetry equivalent cluster
-    
-count_spin(list: pos, list: clust_List)
+    repeat counting for multiplicity
+
+apply_base
+
+apply_pbc(vector: base, vector: position)
+    apply periodic boundary conditions
+
+// starting count.py //
+count_List = np.zeros(len(clust_List))
+for i in range(len(clust_List)):
+        for j in range(pos['site_index']):
+            space_group = symop.find_sym(lat.in)
+            symmetry_operation = symop.find_op(space_group,clust_List[i])
+            multiplicity = len(symmetry_operation)
+                for k in range(multiplicity):
+                    clust = symmetry_operation * clust_List[i][sites]
+                    for l in range(len(clus))
+                        vector = pos['site_pos'] - clust[l]
+                        new_clust = apply_pbc(clust + vector)
+                        species = find_species(new_clust)
+                        count[i]['speces'] += 1
+                            
+        
 
 
 ##############################
