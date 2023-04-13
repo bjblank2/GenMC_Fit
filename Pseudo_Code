@@ -90,7 +90,7 @@ from pathlib import Path
 import symop.py
 
 // functions //
-count_chem(list: pos, list: clust_List)
+count_chem(list: pos_List, list: clust_List)
     iterate over all sites of a given structure
     for each site, extended_site = site + cluster_vector, then apply PBC to get the species on each cluster
     apply symop to get symmetry equivalent cluster
@@ -98,26 +98,29 @@ count_chem(list: pos, list: clust_List)
 
 apply_base
 
-apply_pbc(vector: base, vector: position)
+apply_pbc(vector: base, list(vector): cluster)
     apply periodic boundary conditions
+
+find_species(list(vector): clust, disctoinary: pos_Dict)
+    find the species of each site in a given cluster and structure
 
 // starting count.py //
 count_List = np.zeros(len(clust_List))
-for i in range(len(clust_List)):
-        for j in range(pos['site_index']):
-            space_group = symop.find_sym(lat.in)
-            symmetry_operation = symop.find_op(space_group,clust_List[i])
-            multiplicity = len(symmetry_operation)
-                for k in range(multiplicity):
-                    clust = symmetry_operation * clust_List[i][sites]
-                    for l in range(len(clus))
-                        vector = pos['site_pos'] - clust[l]
-                        new_clust = apply_pbc(clust + vector)
-                        species = find_species(new_clust)
-                        count[i]['speces'] += 1
-                            
-        
-
+enumerate pos_Dict in pos_List:
+    for i in range(len(clust_List)):
+            for j in range(pos_Dict['site_index']):
+                #space_group = symop.find_sym(lat.in)
+                symmetry_operation = symop.find_op(pos_Dict,clust_List[i])
+                multiplicity = len(symmetry_operation)
+                    for k in range(multiplicity):
+                        clust = symmetry_operation * clust_List[i][sites]
+                        for l in range(len(clus))
+                            vector = pos['site_pos'] - clust[l]
+                            new_clust = apply_pbc(clust + vector)
+                            species = find_species(new_clust, pos)
+                            count[i]['species'] += 1
+enumerate redundant_count in count:
+    symop.merge_eq(lat.in, redundant_count['species'])                    
 
 ##############################
 #          symop.py          #
@@ -126,11 +129,15 @@ for i in range(len(clust_List)):
 from pathlib import Path
 
 // functions //
-find_symmetry(dictionary: pos_Dict, list: clust_List)
+find_sym(dictionary: pos_Dict, list: clust_List)
     for a given structure and cluster
     find the space group of the structure
     find all the symmetry equivalent clusters
 
+find_op(dictionary: pos_Dict, list: clust_List)
+
+merge_eq(string: lat.in, list: clust_List)
+    merge all symmetry-euqivalent decorations for a given cluster, e.g. for dimers [0,1]=[1,0]
 
 
 
