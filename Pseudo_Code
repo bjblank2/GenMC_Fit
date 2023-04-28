@@ -54,6 +54,7 @@ lasso_fit(string: K-fold, string: penalty)
         use lasso regression to fit E=sum(clusters * ecis)
         
 ridge_fit(string: K-fold, string: penalty)
+elastic_net
 
 write_output(string: clust_out, string: fit_out, string: eci_out)
 
@@ -65,7 +66,10 @@ pos_List, clust_List, count_List = []
 pos_List = parse.parse_pos(data.in)
 clust_List = parse.parse_clust(cluster.in) 
 count_List = count(pos_List, clust_List)
-clust_out, eci_out, fit_out = lasso_fit(K-fole, penalty)
+enrg_List = readfrom(pos_list)
+clust_count_list = readfrom(count_List) (get every possible decorations)
+lassocv(K-fold, penalty, normalization)
+lassocv.fit(clust_count_list, enrg_list)
 write_output(clust_out, eci_out, fit_out)
 
 
