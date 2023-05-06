@@ -156,52 +156,53 @@ def find_spin(clust, str_dict):
     return spin_value
 
 
-def count_singlelattice(sym_list, pnt_list, str_list, clust_list):
+def count_singlelattice(symeq_clust_list, pntsym_list, str_list, clust_list, spec_seq):
     """
-    count the number of each cluster for each structure
-    :param sym_list: list of symmetry operation based on the input lattice file defined like ATAT
+    count the number of each cluster for each structure with single lattice
+    :param symeq_clust_list: list of symmetry operation based on the input lattice file defined like ATAT
+    :param pntsym_list: list of point symmetry operation for each symmetry equivalent cluster
     :param str_list: parsed DFT data list
     :param clust_list: parsed cluster list
+    :param spec_seq: species order like ['Fe', 'Ni', 'Cr']
     :return: list of the count number (count_list)
     """
     count_list_all = []
-    str_list = apply_basis(str_list)  # transform from direct coord to Cartesian coord
+    str_list = apply_basis(str_list)  # transform str from direct coord to Cartesian coord
     for str_dict in str_list:
         count_list = copy.deepcopy(clust_list)
         for i in range(len(clust_list)):
             count_dict = {}
-            orig_clust = scale_clust(clust_list[i])  # transform from direct coord to Cartesian coord
+            orig_clust = scale_clust(clust_list[i])  # transform clust from direct coord to Cartesian coord
             pbc_clust = apply_pbc(orig_clust, str_dict)
             spec = find_spec(pbc_clust, str_dict)
             if spec == ['empty']:
-                print('Cluster #', i + 1, 'is not present in current lattice. Check the input files!')
+                print('Cluster #', i + 1, 'is not present in Structure #', str_dict['CellName'])
             else:
-                # symeq_clust_list = symop.find_eq_clust(sym_list, orig_clust)
-                symeq_clust_list = sym_list[i]
-                multiplicity = len(symeq_clust_list)
+                symeq_clust = symeq_clust_list[i]
+                multiplicity = len(symeq_clust)
                 count_list[i].append({'Multiplicity': int(multiplicity/len(orig_clust[0]))})
                 for j in range(len(str_dict['LatPnt'])):
                     for k in range(multiplicity):
-                        old_clust = symeq_clust_list[k]
+                        old_clust = symeq_clust[k]
                         vect = np.subtract.reduce([str_dict['LatPnt'][j], [0, 0, 0]], axis=0)
                         new_clust = copy.deepcopy(old_clust)
                         for x in range(len(old_clust[0])):
                             new_clust[0][x] = np.sum([old_clust[0][x], vect], axis=0)
                         pbc_clust = apply_pbc(new_clust, str_dict)
                         spec = find_spec(pbc_clust, str_dict)
-                        # spec = symop.find_eq_spec_seq(list(spec), old_clust)
-                        spec = symop.find_eq_spec_seq(list(spec), old_clust, pnt_list[i][k])
+                        # find the only right equivalent sequence
+                        spec = symop.find_eq_spec_seq(list(spec), old_clust, pntsym_list[i][k], spec_seq)
                         if new_clust[2][0] == 0:
-                            if tuple(spec) in count_dict.keys():
-                                count_dict[tuple(spec)] += 1
+                            if str(spec) in count_dict.keys():
+                                count_dict[str(spec)] += 1
                             else:
-                                count_dict[tuple(spec)] = 1
+                                count_dict[str(spec)] = 1
                         elif new_clust[2][0] == 1:
                             spin = find_spin(new_clust, str_dict)
-                            if tuple(spec) in count_dict.keys():
-                                count_dict[tuple(spec)] += spin
+                            if str(spec) in count_dict.keys():
+                                count_dict[str(spec)] += spin
                             else:
-                                count_dict[tuple(spec)] = spin
+                                count_dict[str(spec)] = spin
             for keys in count_dict:
                 values = count_dict[keys]
                 count_dict[keys] = np.around(values/(str_dict['AtomSum']*len(orig_clust[0])), decimals=5)
@@ -212,5 +213,8 @@ def count_singlelattice(sym_list, pnt_list, str_list, clust_list):
 
 
 def count_multisublattice():
-
+    """
+    count the number of each cluster for each structure with multisublattice
+    :return:
+    """
     return 0
