@@ -190,14 +190,14 @@ def count_singlelattice(symeq_clust_list, pntsym_list, str_list, clust_list, spe
                             new_clust[0][x] = np.sum([old_clust[0][x], vect], axis=0)
                         pbc_clust = apply_pbc(new_clust, str_dict)
                         spec = find_spec(pbc_clust, str_dict)
-                        # find the only right equivalent sequence
+                        # find the only true equivalent sequence
                         spec = symop.find_eq_spec_seq(list(spec), old_clust, pntsym_list[i][k], spec_seq)
-                        if new_clust[2][0] == 0:
+                        if new_clust[2][0] == 0:  # chem term
                             if str(spec) in count_dict.keys():
                                 count_dict[str(spec)] += 1
                             else:
                                 count_dict[str(spec)] = 1
-                        elif new_clust[2][0] == 1:
+                        elif new_clust[2][0] == 1:  # spin term
                             spin = find_spin(new_clust, str_dict)
                             if str(spec) in count_dict.keys():
                                 count_dict[str(spec)] += spin

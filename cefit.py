@@ -1,80 +1,52 @@
+import symop
+import copy
 import json
 import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.linear_model import LassoCV
-from sklearn.linear_model import RidgeCV
 from sklearn.linear_model import Ridge
 from sklearn.linear_model import Lasso
+from sklearn.linear_model import LassoCV
+from sklearn.linear_model import RidgeCV
 from sklearn.linear_model import ElasticNetCV
-from sklearn.linear_model import LinearRegression
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import normalize
 from sklearn.metrics import mean_squared_error
-from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import KFold
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import normalize
 from sklearn.utils import resample
+
+n = 1000
+alpha_range = [-7, 2]
+alpha_cv = np.logspace(alpha_range[0], alpha_range[1], num=100)
+l1 = [.4, .5, .6, .7, .9]
+kf = KFold(n_splits=10, shuffle=True, random_state=123)
 
 
 def ridge_fit(count, enrg):
     """
     Lasso fitting to raw energy per atom
     :param enrg: energy list
-    :param count: count list containing clusters, decoration, and counts
+    :param count: count list containing clusters, decorations, and counts
     :return: list of ECIs
     """
-    # train-test ridge
-    x_train, x_test, y_train, y_test = train_test_split(count, enrg, test_size=0.2, random_state=184)
-    alpha_range = [-6, 3]
-    alpha_train = np.logspace(alpha_range[0], alpha_range[1], num=50)
-    train_rmse = []
-    test_rmse = []
-    train_score = []
-    test_score = []
-    coeff_num = []
-    for a in alpha_train:
-        model = Ridge(alpha=a).fit(x_train, y_train)
-        train_rmse.append(np.sqrt(mean_squared_error(model.predict(x_train), y_train)))
-        test_rmse.append(np.sqrt(mean_squared_error(model.predict(x_test), y_test)))
-        train_score.append(model.score(x_train, y_train))
-        test_score.append(model.score(x_test, y_test))
-        coeff_num.append(np.sum(model.coef_ != 0))
-    for i in range(len(test_rmse)):
-        if test_rmse[i] == np.min(test_rmse):
-            print('ridge', test_rmse[i], test_score[i])
-            print(alpha_train[i], np.log10(alpha_train[i]))
-            print(coeff_num[i])
-    plt.ylim(0, 0.05)
-    plt.scatter(np.log10(alpha_train), train_rmse, label='train rmse')
-    plt.scatter(np.log10(alpha_train), test_rmse, label='test rmse')
-    plt.legend()
-    plt.savefig('ridge_train.pdf')
-
     # bootstrap ridge
-    ridge_rmse_list = [[] for _ in range(100)]
-    ridge_score_list = [[] for _ in range(100)]
-    ridge_coef_num = [[] for _ in range(100)]
-    ridge_coef_list = [[] for _ in range(100)]
-    ridge_alpha_list = [[] for _ in range(100)]
-    ridge_model_list = [[] for _ in range(100)]
-    for i in range(100):
-        x, y = resample(count, enrg, n_samples=150, random_state=i)
-        alpha_range = [-4, 1]
-        alpha_ridge = np.logspace(alpha_range[0], alpha_range[1], num=50)
-        kf = KFold(n_splits=10, shuffle=True)
-        model = RidgeCV(alphas=alpha_ridge, cv=kf).fit(x, y)
-        ridge_model_list[i] = model
-        ridge_rmse_list[i].append(np.sqrt(mean_squared_error(model.predict(x), y)))
-        ridge_score_list[i].append(model.score(x, y))
-        ridge_coef_num[i].append(np.sum(model.coef_ != 0))
-        ridge_coef_list[i].append(model.intercept_)
-        ridge_coef_list[i].extend(model.coef_.tolist())
-        ridge_alpha_list[i].append(model.alpha_)
-    coef_mean = np.mean(ridge_coef_list, axis=0)
-    coef_err = np.std(ridge_coef_list, axis=0)
-    plt.figure(dpi=300, figsize=(12, 3))
-    plt.errorbar(np.arange(len(coef_mean)), coef_mean, yerr=coef_err, fmt='ro', ms=3, ecolor='g', capsize=2)
-    plt.savefig('ridge_bootstrap.pdf')
+    print('Ridge: alpha, rmse, score, coef_num', flush=True)
+    attr_list = [[] for _ in range(n)]
+    coef_list = [[] for _ in range(n)]
+    for i in range(n):
+        x, y = resample(count, enrg, n_samples=250, random_state=i)
+        model = RidgeCV(alphas=alpha_cv, cv=kf)
+        model.fit(x, y)
+        coef_list[i].append(model.intercept_)
+        coef_list[i].extend(model.coef_.tolist())
+        rmse = np.sqrt(mean_squared_error(model.predict(count), enrg))
+        score = model.score(count, enrg)
+        coef_num = np.sum(model.coef_ != 0)
+        print(model.alpha_, rmse, score, coef_num, flush=True)
+        attr_list[i].extend([model.alpha_, rmse, score, float(coef_num)])
+    coef_mean = np.mean(coef_list, axis=0)
+    with open('ridge_coef', 'w') as filehandle:
+        json.dump(coef_list, filehandle)
+    with open('ridge_attr', 'w') as filehandle:
+        json.dump(attr_list, filehandle)
 
     return coef_mean
 
@@ -83,72 +55,114 @@ def lasso_fit(count, enrg):
     """
     Lasso fitting to energy above hull
     :param enrg: energy list
-    :param count: count list containing clusters, decoration, and counts
+    :param count: count list containing clusters, decorations, and counts
     :return: list of ECIs
     """
-    # train-test lasso
-    x_train, x_test, y_train, y_test = train_test_split(count, enrg, test_size=0.2, random_state=237)
-    alpha_range = [-6, -1]
-    alpha_train = np.logspace(alpha_range[0], alpha_range[1], num=50)
-    train_rmse = []
-    test_rmse = []
-    train_score = []
-    test_score = []
-    coeff_num = []
-    for a in alpha_train:
-        model = Lasso(alpha=a, max_iter=10000000, tol=1e-6).fit(x_train, y_train)
-        train_rmse.append(np.sqrt(mean_squared_error(model.predict(x_train), y_train)))
-        test_rmse.append(np.sqrt(mean_squared_error(model.predict(x_test), y_test)))
-        train_score.append(model.score(x_train, y_train))
-        test_score.append(model.score(x_test, y_test))
-        coeff_num.append(np.sum(model.coef_ != 0))
-    for i in range(len(test_rmse)):
-        if test_rmse[i] == np.min(test_rmse):
-            print(test_rmse[i], test_score[i])
-            print(alpha_train[i], np.log10(alpha_train[i]))
-            print(coeff_num[i])
-    plt.ylim(0, 0.05)
-    plt.scatter(np.log10(alpha_train), train_rmse, label='train rmse')
-    plt.scatter(np.log10(alpha_train), test_rmse, label='test rmse')
-    plt.legend()
-    plt.savefig('lasso_train.pdf')
-
     # bootstrap lasso
-    lasso_rmse_list = [[] for _ in range(100)]
-    lasso_score_list = [[] for _ in range(100)]
-    lasso_coef_num = [[] for _ in range(100)]
-    lasso_coef_list = [[] for _ in range(100)]
-    lasso_alpha_list = [[] for _ in range(100)]
-    lasso_model_list = [[] for _ in range(100)]
-    for i in range(100):
-        x, y = resample(count, enrg, n_samples=150, random_state=i)
-        alpha_range = [-6, -1]
-        alpha_lasso = np.logspace(alpha_range[0], alpha_range[1], num=50)
-        kf = KFold(n_splits=10, shuffle=True)
-        model = LassoCV(alphas=alpha_lasso, cv=kf, max_iter=10000000, tol=1e-5).fit(x, y)
-        lasso_model_list[i] = model
-        lasso_rmse_list[i].append(np.sqrt(mean_squared_error(model.predict(x), y)))
-        lasso_score_list[i].append(model.score(x, y))
-        lasso_coef_num[i].append(np.sum(model.coef_ != 0))
-        lasso_coef_list[i].append(model.intercept_)
-        lasso_coef_list[i].extend(model.coef_.tolist())
-        lasso_alpha_list[i].append(model.alpha_)
-    coef_mean = np.mean(lasso_coef_list, axis=0)
-    coef_err = np.std(lasso_coef_list, axis=0)
-    plt.figure(dpi=300, figsize=(12, 3))
-    plt.errorbar(np.arange(len(coef_mean)), coef_mean, yerr=coef_err, fmt='ro', ms=3, ecolor='g', capsize=2)
-    plt.savefig('lasso_bootstrap.pdf')
+    print('alpha, rmse, score, coef_num', flush=True)
+    coef_list = [[] for _ in range(n)]
+    attr_list = [[] for _ in range(n)]
+    for i in range(n):
+        x, y = resample(count, enrg, n_samples=250, random_state=i)
+        model = LassoCV(alphas=alpha_cv, cv=kf, max_iter=10000000, tol=1e-5)
+        model.fit(x, y)
+        coef_list[i].append(model.intercept_)
+        coef_list[i].extend(model.coef_.tolist())
+        rmse = np.sqrt(mean_squared_error(model.predict(count), enrg))
+        score = model.score(count, enrg)
+        coef_num = np.sum(model.coef_ != 0)
+        print(model.alpha_, rmse, score, coef_num, flush=True)
+        attr_list[i].extend([model.alpha_, rmse, score, float(coef_num)])
+    coef_mean = np.mean(coef_list, axis=0)
+    print('# of lasso selected features', np.sum(coef_mean != 0), flush=True)
+    with open('lasso_coef', 'w') as filehandle:
+        json.dump(coef_list, filehandle)
+    with open('lasso_attr', 'w') as filehandle:
+        json.dump(attr_list, filehandle)
 
     return coef_mean
 
 
+def eln_fit(count, enrg):
+    """
+    ElasticNet fitting to raw energy per atom
+    :param enrg: energy list
+    :param count: count list containing clusters, decorations, and counts
+    :return: list of ECIs
+    """
+    # bootstrap elasticnet
+    print('Eln: alpha, l1_ratio, rmse, score, coef_num', flush=True)
+    attr_list = [[] for _ in range(n)]
+    coef_list = [[] for _ in range(n)]
+    for i in range(n):
+        x, y = resample(count, enrg, n_samples=250, random_state=i)
+        model = ElasticNetCV(alphas=alpha_cv, cv=kf, max_iter=10000000, tol=1e-5, l1_ratio=l1)
+        model.fit(x, y)
+        coef_list[i].append(model.intercept_)
+        coef_list[i].extend(model.coef_.tolist())
+        rmse = np.sqrt(mean_squared_error(model.predict(count), enrg))
+        score = model.score(count, enrg)
+        coef_num = np.sum(model.coef_ != 0)
+        print(model.alpha_, model.l1_ratio_, rmse, score, coef_num, flush=True)
+        attr_list[i].extend([model.alpha_, model.l1_ratio_, rmse, score, float(coef_num)])
+    coef_mean = np.mean(coef_list, axis=0)
+    print('# of eln selected features', np.sum(coef_mean != 0), flush=True)
+    with open('eln_coef', 'w') as filehandle:
+        json.dump(coef_list, filehandle)
+    with open('eln_attr', 'w') as filehandle:
+        json.dump(attr_list, filehandle)
+
+    return coef_mean
 
 
-
-
-
-
-
-
-
-
+def write_eci(symeq_clust_list, deco_list, eci_list, pntsym_list, spec_seq):
+    """
+    write the clusters and ecis as a rule file for the magnetic MC simulation
+    :param symeq_clust_list:
+    :param deco_list:
+    :param eci_list:
+    :param pntsym_list:
+    :param spec_seq
+    :return: a file like this
+            #
+            Motif= 0, 0, 0 : 1, 0, 0 : 0, 1, 0
+            Deco= 0, 0, 0 : 1, 1, 1 : 0, 1, 1 : 1, 0, 0 : 2, 2, 1
+            Type= 0, 0, 0, 0, 0
+            Enrg = -0.002, 0.01, -0.025, -0.012, 1.1
+            #
+            Motif= 0, 0, 0 : 0, 1, 0
+            Deco= 0, 0 : 1, 1 : 0, 1 : 2, 1
+            Type= 1, 1, 0, 0
+            Enrg = -0.003, 0.02, -0.02, -0.01
+    """
+    output = open('MC_rules', 'w')
+    output.write('# \n')
+    output.write('Motif : intercept \n')
+    output.write('Enrg : ' + str(eci_list[0]) + '\n')
+    for i in range(len(symeq_clust_list)):
+        start = 0
+        for k in range(0, i):
+            start = start + len(deco_list[k])
+        for j in range(len(symeq_clust_list[i])):
+            clust = symeq_clust_list[i][j]
+            motif = clust[0]
+            deco = deco_list[i]
+            spin = symeq_clust_list[i][j][2][0]
+            enrg_list = []
+            output.write('# \n')
+            output.write('Motif')
+            for k in range(len(motif)):
+                output.write(' : ' + ', '.join(map(str, motif[k])) )
+            output.write('\nDeco')
+            for k in range(len(deco)):
+                spec_list = symop.find_eq_spec_list(deco[k], clust, pntsym_list[i][j], spec_seq)
+                enrg = [eci_list[start + k + 1]] * len(spec_list)
+                enrg_list.extend(enrg)
+                for m in range(len(spec_list)):
+                    output.write(' : ' + str(spec_list[m]))
+            output.write('\nType : ' + str(spin))
+            output.write('\nEnrg')
+            for k in range(len(enrg_list)):
+                output.write(' : ' + str(enrg_list[k]))
+            output.write('\n')
+    output.close()

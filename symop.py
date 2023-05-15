@@ -200,20 +200,22 @@ def find_eq_clust(sym_list, clust):
 def find_eq_spec_seq(spec, clust, pntsym, spec_seq):
     """
     find all equivalent species sequences in a given cluster
-    :param spec: input species sequence
+    :param spec: input species sequence in list like ['Fe', 'Ni', 'Cr']
     :param clust: site-sorted cluster from symeq_clust_list
     :param pntsym: point symmetry for the cluster
     :param spec_seq: species order like ['Fe', 'Ni', 'Cr']
     :return: the first item in the sorted list of equivalent species sequences
     """
     if len(spec) == 1:
-        return str(spec_seq.index(spec[0]))
+        # return str(spec_seq.index(spec[0]))
+        return ', '.join(map(str, spec))
     elif len(spec) == 2:
         spec.sort()
-        new_spec = ''
-        for i in range(2):
-            new_spec = new_spec + str(spec_seq.index(spec[i]))
-        return new_spec
+        return ', '.join(map(str, spec))
+        # new_spec = ''
+        # for i in range(2):
+        #     new_spec = new_spec + str(spec_seq.index(spec[i]))
+        # return new_spec
     elif len(spec) >= 3:
         coords = clust[0]
         new_spec_list = []
@@ -233,58 +235,75 @@ def find_eq_spec_seq(spec, clust, pntsym, spec_seq):
             new_clust_list.append(new_clust)
         new_clust_list = [x for n, x in enumerate(new_clust_list) if x not in new_clust_list[:n]]
         for i in range(len(new_clust_list)):
-            new_spec = ''
             new_clust = new_clust_list[i]
             sort_coord_dist(new_clust)
+            new_spec = []
             for j in range(len(new_clust)):
-                new_spec = new_spec + str(spec_seq.index(new_clust[j][3]))
+                # new_spec = new_spec + str(spec_seq.index(new_clust[j][3]))
+                new_spec.append(str(new_clust[j][3]))
+            new_spec = ', '.join(map(str, new_spec))
             new_spec_list.append(new_spec)
         new_spec_list.sort()
-
         return new_spec_list[0]
 
 
-# sp = [[]] * 3
-# cl = [[]] * 3
-# el = [[]] * 3
-# sp[0] = ['1', '1', '0', '1']
-# el[0] = ['Ni', 'Cr', 'Fe', 'Ni']
-# cl[0] = [[[0, 0, 0], [1.8, 1.8, 0], [0, 1.8, 0], [1.8, 0, 0]], [1.8], [0]]
-# sp[1] = ['2', '1']
-# cl[1] = [[[0, 0, 0], [1, 0, 0]], [1], [0]]
-# sp[2] = ['1', '1', '0']
-# cl[2] = [[[-1.8, -1.8, 0], [-3.6, 0, 0], [0, 0, 0]], [3.6], [0]]
-#
-# y = find_eq_spec_seq(el[0],cl[0])
-# print(y, len(y))
-
-# sym_list = find_sym('lat.in')
-# x = find_eq_clust(sym_list, cl[2])
-# print(x, len(x))
-
-
-# cl1 = [[[-1.8, -1.8, 0], [-3.6, 0, 0], [0, 0, 0]], [3.6], [0]]
-# cl2 = [[[1.8, -1.8, 0], [0, 0, 0], [3.6, 0, 0]], [3.6], [0]]
-# cl3 = [[[0, 0, 0], [1.8, -1.8, 0], [1.8, 1.8, 0], [3.6, 0, 0]], [3.6], [0]]
-# cl4 = [[[0, 0, 0], [0, 1.8, 0], [1.8, 0, 0], [1.8, 1.8, 0], [1.9, 0.9, 0]], [3.6], [0]]
-# spec = ['1', '1', '0', '0']
-# elem = ['Ni', 'Fe', 'Fe', 'Ni', 'Cr']
-# coords = cl4[0]
-# molec = Molecule(['H'] * len(coords), coords)
-# pntsym = syman.PointGroupAnalyzer(molec).get_symmetry_operations()
-# print(len(pntsym))
-# clust = Molecule(elem, coords)
-# new_clust = [[]] * len(elem)
-# for sym_op in pntsym:
-#     clust = Molecule(elem, coords)
-#     clust.apply_operation(sym_op)
-#     for i in range(len(clust)):
-#         pnt = str(clust[i])
-#         a = pnt.replace('[', '')
-#         b = a.replace(']', '')
-#         c = b.split()
-#         d = [round(float(c[0]), 5), round(float(c[1]), 5), round(float(c[2]), 5), str(c[3])]
-#         new_clust[i] = d
-#     print('old', new_clust)
-#     sort_coord_dist(new_clust)
-#     print('new', new_clust)
+def find_eq_spec_list(spec, clust, pntsym, spec_seq):
+    """
+    find all equivalent species sequences in a given cluster
+    :param spec: input species sequence
+    :param clust: site-sorted cluster from symeq_clust_list
+    :param pntsym: point symmetry for the cluster
+    :param spec_seq: species order like ['Fe', 'Ni', 'Cr']
+    :return: the sorted list of equivalent species sequences in string like ['0, 1, 0', '0, 0, 1']
+    """
+    spec = spec.split(', ')
+    new_spec_list = []
+    if len(spec) == 1:
+        new_spec_list = [str(spec_seq.index(spec[0]))]
+        # new_spec_list = [str(spec[0])]
+    elif len(spec) == 2:
+        if spec[0] == spec[1]:
+            new_spec = []
+            for i in range(2):
+                new_spec.append(str(spec_seq.index(spec[i])))
+            new_spec = ', '.join(map(str, new_spec))
+            new_spec_list = [new_spec]
+        else:
+            spec1 = []
+            spec2 = []
+            new_spec = copy.deepcopy(spec)
+            new_spec.reverse()
+            for i in range(2):
+                spec1.append(str(spec_seq.index(spec[i])))
+                spec2.append(str(spec_seq.index(new_spec[i])))
+            spec1 = ', '.join(map(str, spec1))
+            spec2 = ', '.join(map(str, spec2))
+            new_spec_list = [str(spec1), str(spec2)]
+    elif len(spec) >= 3:
+        coords = clust[0]
+        new_clust_list = []
+        for sym_op in pntsym:
+            new_clust = [[]] * len(spec)
+            molec = Molecule(spec, coords)
+            molec.apply_operation(sym_op)  # apply pnt_sym to get different spec sequence
+            for i in range(len(spec)):
+                pnt = str(molec[i])
+                a = pnt.replace('[', '')
+                b = a.replace(']', '')
+                c = b.split()
+                d = [round(float(c[0]), 5), round(float(c[1]), 5), round(float(c[2]), 5), str(c[3])]
+                new_clust[i] = d
+            new_clust.sort()  # sort first by coordinates to get rid of repeated spec sequence
+            new_clust_list.append(new_clust)
+        new_clust_list = [x for n, x in enumerate(new_clust_list) if x not in new_clust_list[:n]]
+        for i in range(len(new_clust_list)):
+            new_spec = []
+            new_clust = new_clust_list[i]
+            sort_coord_dist(new_clust)
+            for j in range(len(new_clust)):
+                new_spec.append(str(spec_seq.index(new_clust[j][3])))
+            new_spec = ', '.join(map(str, new_spec))
+            new_spec_list.append(new_spec)
+    new_spec_list = [x for n, x in enumerate(new_spec_list) if x not in new_spec_list[:n]]
+    new_spec_list.sort()
+    return new_spec_list

@@ -110,7 +110,7 @@ def parse_count(count_out):
     """
     read the count_out file to get a list containing all possible cluster (motifs and decorations)
     :param count_out: file name with counting results
-    :return:
+    :return: count list for all structures in a specific sequence
     """
     with open(count_out, 'r') as filehandle:
         count_list = json.load(filehandle)
@@ -123,7 +123,6 @@ def parse_count(count_out):
                     deco_list[j].append(deco)
     for deco in deco_list:
         deco.sort()
-    print(deco_list)
     count = [[] for _ in count_list]
     for i in range(len(count_list)):
         for j in range(len(deco_list)):
@@ -136,7 +135,7 @@ def parse_count(count_out):
     print('# of input structures:', len(count_list))
     print('# of input clusters with decoration:', len(count[0]))
 
-    return count
+    return count, deco_list
 
 
 def parse_enrg(str_out):
