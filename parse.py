@@ -2,6 +2,18 @@ import json
 import numpy as np
 
 
+def parse_lat(lat_in):
+    """
+    read lattice input file
+    :param lat_in: file containing lattice information
+    :return:
+    """
+    f = open(lat_in)
+    lat = f.readlines()
+    
+    return 0
+
+
 def parse_str(data_file):
     """
     Read in the DFT data and return to a list containing metadata dictionary for all DFT calculations
@@ -56,15 +68,15 @@ def parse_str(data_file):
             str_dict['LatConst'] = lat_const  # lattice constants
             str_dict['UnitVol'] = vol  # volume per cell
             str_dict['Enrg'] = enrg  # energy per cell
-            str_dict['ElemName'] = elem_name  # species names
-            str_dict['ElemNum'] = elem_num  # number of species type
-            str_dict['AtomNum'] = atom_numb  # number of each atomic species
+            str_dict['ElemName'] = elem_name  # users-specified species names
+            str_dict['ElemNum'] = elem_num  # number of users-specified species type
+            str_dict['AtomNum'] = atom_numb  # number of each users-specified atomic species
             str_dict['AtomSum'] = atom_sum  # total number of atom
             str_dict['LatType'] = lat_type  # use direct coordinate
-            str_dict['LatPnt'] = pos_list  # list of coordinates for each atom
+            str_dict['LatPnt'] = pos_list  # list of coordinates for each atom (existing in the str)
             str_dict['Spin'] = spin_list  # list of spin at each atom
-            str_dict['Type'] = type_list  # list of species of each atom
-            str_dict['Spec'] = spec_list
+            str_dict['Type'] = type_list  # list of species index of each atom
+            str_dict['Spec'] = spec_list # list of species name of each atom
             str_list.append(str_dict.copy())
     return str_list
 
@@ -133,14 +145,14 @@ def parse_count(count_out):
                 else:
                     count[i].append(0)
     print('# of input structures:', len(count_list))
-    print('# of input clusters with decoration:', len(count[0]))
+    print('# of input clusters with decoration:', len(count[0]), flush=True)
 
     return count, deco_list
 
 
 def parse_enrg(str_out):
     """
-    get energy or energy_above_hull list from str_list
+    get energy list from str_list
     :param str_out: file name with structure metadata
     :return: enrg
     """
@@ -149,5 +161,28 @@ def parse_enrg(str_out):
     enrg = []
     for str_dict in str_list:
         enrg.append(str_dict['Enrg'])
+
+    return enrg
+
+
+def parse_scaled_enrg(str_out, ep_comp, ep_enrg):
+    """
+    get rescaled energy list
+    :param str_out: file name with structure metadata
+    :param ep_comp: endpoint composition in a list like [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+    :param ep_enrg: endpoint energy in a list like [-1, -2, -3]
+    :return:
+    """
+    with open(str_out, 'r') as filehandle:
+        str_list = json.load(filehandle)
+    enrg = []
+    for str_dict in str_list:
+        raw_enrg = str_dict['Enrg']
+        raw_comp = np.divide(str_dict['AtomNum'], str_dict['AtomSum'])
+        trans_matr = np.vstack(ep_comp).T
+        inv_matr = np.linalg.inv(trans_matr)
+        scale_comp = np.matmul(inv_matr, raw_comp.T)
+        scale_enrg = np.subtract(raw_enrg, np.matmul(scale_comp, ep_enrg))
+        enrg.append(float(scale_enrg))
 
     return enrg

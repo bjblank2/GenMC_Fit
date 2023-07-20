@@ -35,7 +35,7 @@ def scale_clust(clust):
     """
     Transform from unscaled Cartesian coordinates to scaled ones for a given cluster
     :param clust: cluster from clust_list in the formate of [[coord_list], [dist_list], [spin]]
-    :return: clust
+    :return: scaled clust
     """
     size = len(clust[0])
     max_dist = 0
@@ -59,16 +59,12 @@ def scale_clust(clust):
 def frac_to_cart(frac_coord, basis):
     """
     Transform from fraction/direct coord to Cartesian coord for a given structure
-    :param frac_coord: list in the format of [0,0,0]
+    :param frac_coord: list in the format of [0.5, 0.5, 0.5]
     :param basis: list in the format of [[0.0, 0.0, 3.6], [0.0, 3.6, 0.0], [3.6, 0.0, 0.0]]
     :return: cart_coord
     """
-    a1 = np.array(basis[0])
-    a2 = np.array(basis[1])
-    a3 = np.array(basis[2])
     frac_coord = np.array(frac_coord)
-    trans_matr = np.vstack([a1, a2, a3]).T
-    # inv_matr = np.linalg.inv(trans_matr)
+    trans_matr = np.vstack(basis).T
     cart_coord = np.matmul(trans_matr, frac_coord.T).T
 
     return list(cart_coord)
@@ -77,15 +73,12 @@ def frac_to_cart(frac_coord, basis):
 def cart_to_frac(cart_coord, basis):
     """
     transform from Cartesian coordinate to direct/fraction coordinate
-    :param cart_coord: list in the format of [0, 0, 0]
+    :param cart_coord: list in the format of [1.8, 1.8, 1.8]
     :param basis: list in the format of [[0.0, 0.0, 3.6], [0.0, 3.6, 0.0], [3.6, 0.0, 0.0]]
     :return: frac_coord
     """
-    a1 = np.array(basis[0])
-    a2 = np.array(basis[1])
-    a3 = np.array(basis[2])
     cart_coord = np.array(cart_coord)
-    trans_matr = np.vstack([a1, a2, a3]).T
+    trans_matr = np.vstack(basis).T
     inv_matr = np.linalg.inv(trans_matr)
     frac_coord = np.matmul(inv_matr, cart_coord.T).T
 
@@ -114,15 +107,16 @@ def apply_pbc(clust, str_dict):
 def find_spec(clust, str_dict):
     """
     find the species on each sites of a given cluster
-    :param clust: containing Cartesian coordinate after applying PBCs
+    :param clust: containing Cartesian coordinate after applying PBC
     :param str_dict: containing Cartesian coordinates
     :return: spec_list: a list of species in the same sequence of the cluster sites
     """
     spec = [None] * len(clust[0])
     for i in range(len(clust[0])):
-        dist = 0.1
+        dist = 0.2
         for j in range(len(str_dict['LatPnt'])):
-            new_dist = calc_dist(clust[0][i], str_dict['LatPnt'][j])
+            # new_dist = calc_dist(clust[0][i], str_dict['LatPnt'][j])
+            new_dist = np.sum(np.abs(np.subtract(clust[0][i], str_dict['LatPnt'][j])))
             if new_dist < dist:
                 dist = new_dist
                 spec[i] = str_dict['Spec'][j]
@@ -137,33 +131,30 @@ def find_spec(clust, str_dict):
 def find_spin(clust, str_dict):
     """
     find the species on each sites of a given cluster
-    :param clust: containing Cartesian coordinate after applying PBCs
+    :param clust: containing Cartesian coordinate after applying PBC
     :param str_dict: containing Cartesian coordinates
     :return: spin product of all cluster sites
     """
     spin = np.zeros(len(clust[0]))
     for i in range(len(clust[0])):
-        dist = 0.1
+        dist = 0.2
         for j in range(len(str_dict['LatPnt'])):
-            if calc_dist(clust[0][i], str_dict['LatPnt'][j]) < dist:
-                dist = calc_dist(clust[0][i], str_dict['LatPnt'][j])
+            new_dist = np.sum(np.abs(np.subtract(clust[0][i], str_dict['LatPnt'][j])))
+            if new_dist < dist:
+                dist = new_dist
                 spin[i] = str_dict['Spin'][j]
-    if None in spin:
-        spin_value = None
-    else:
-        spin_value = math.prod(spin)
+    spin_value = math.prod(spin)
 
     return spin_value
 
 
-def count_singlelattice(symeq_clust_list, pntsym_list, str_list, clust_list, spec_seq):
+def count_singlelattice(symeq_clust_list, pntsym_list, str_list, clust_list):
     """
     count the number of each cluster for each structure with single lattice
     :param symeq_clust_list: list of symmetry operation based on the input lattice file defined like ATAT
     :param pntsym_list: list of point symmetry operation for each symmetry equivalent cluster
     :param str_list: parsed DFT data list
     :param clust_list: parsed cluster list
-    :param spec_seq: species order like ['Fe', 'Ni', 'Cr']
     :return: list of the count number (count_list)
     """
     count_list_all = []
@@ -191,17 +182,25 @@ def count_singlelattice(symeq_clust_list, pntsym_list, str_list, clust_list, spe
                         pbc_clust = apply_pbc(new_clust, str_dict)
                         spec = find_spec(pbc_clust, str_dict)
                         # find the only true equivalent sequence
-                        spec = symop.find_eq_spec_seq(list(spec), old_clust, pntsym_list[i][k], spec_seq)
-                        if new_clust[2][0] == 0:  # chem term
+                        spec = symop.find_eq_spec_seq(list(spec), old_clust, pntsym_list[i][k])
+                        if pbc_clust[2][0] == 0:  # chem term
                             if str(spec) in count_dict.keys():
                                 count_dict[str(spec)] += 1
                             else:
                                 count_dict[str(spec)] = 1
-                        elif new_clust[2][0] == 1:  # spin term
-                            spin = find_spin(new_clust, str_dict)
+                        elif pbc_clust[2][0] == 1:  # spin term
+                            spin = find_spin(pbc_clust, str_dict)
                             if str(spec) in count_dict.keys():
+                                # if len(pbc_clust[1]) == 1:
+                                #     count_dict[str(spec)] += abs(spin)
+                                # else:
+                                #     count_dict[str(spec)] += spin
                                 count_dict[str(spec)] += spin
                             else:
+                                # if len(pbc_clust[1]) == 1:
+                                #     count_dict[str(spec)] = abs(spin)
+                                # else:
+                                #     count_dict[str(spec)] = spin
                                 count_dict[str(spec)] = spin
             for keys in count_dict:
                 values = count_dict[keys]
@@ -210,11 +209,3 @@ def count_singlelattice(symeq_clust_list, pntsym_list, str_list, clust_list, spe
         count_list_all.append([str_dict['CellName'], count_list])
 
     return count_list_all
-
-
-def count_multisublattice():
-    """
-    count the number of each cluster for each structure with multisublattice
-    :return:
-    """
-    return 0

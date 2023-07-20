@@ -5,16 +5,19 @@ from pymatgen.symmetry import analyzer as syman
 from pymatgen.symmetry import site_symmetries as symsite
 
 
-def war_pmg_sym(pmg_sym):
+def find_sym(lat_in):
     """
-    write and read pymatgen symmetry
-    :param pmg_sym: pymatgen symmetry operations
-    :return: list of symmetry operations from pmg_sym
+    find the site symmetry of a given lattice from input lattice file defined like ATAT
+    :param lat_in: lattice file
+    :return: list of symmetry operations
     """
-    f = open('sym_temp', 'w+')
+    struct = Structure.from_file(lat_in)
+    struct = syman.SpacegroupAnalyzer(struct).find_primitive()
+    pmg_sym = symsite.get_site_symmetries(struct, 0.1)
+    f = open('sym_out', 'w+')
     f.write(str(pmg_sym))
     f.close()
-    lines = open('sym_temp', 'r').read().split('\n')
+    lines = open('sym_out', 'r').read().split('\n')
     sym_list = []
     for i in range(len(lines)):
         if ':' in lines[i]:
@@ -28,22 +31,6 @@ def war_pmg_sym(pmg_sym):
             sym_list.append(s)
 
     return sym_list
-
-
-def find_sym(lat_in):
-    """
-    find the site symmetry of a given lattice from input lattice file defined like ATAT
-    :param lat_in: lattice file
-    :return: list of symmetry operations
-    """
-    struct = Structure.from_file(lat_in)
-    struct = syman.SpacegroupAnalyzer(struct).find_primitive()
-    pmg_sym = symsite.get_site_symmetries(struct, 0.1)
-    f = open('sym_out', 'w+')
-    f.write(str(pmg_sym))
-    f.close()
-
-    return war_pmg_sym(pmg_sym)
 
 
 def calc_dist(pnt1, pnt2):
@@ -67,7 +54,7 @@ def check_lateral(clust):
     if len(clust[0]) > 2:
         center_coord = list(np.mean(clust[0], axis=0))
         dist = calc_dist(center_coord, clust[0][0])
-        for i in range(len(clust[0])):
+        for i in range(1, len(clust[0])):
             if np.abs(dist - calc_dist(center_coord, clust[0][i])) > 0.001:
                 return 0
     return 1
@@ -153,7 +140,7 @@ def apply_symop(sym_op, clust):
     for j in range(len(clust[0])):
         clust_site = clust[0][j]
         symeq_clust_site = np.matmul(sym_op, np.array(clust_site).T).T
-        symeq_clust[0][j] = list(np.around(symeq_clust_site, decimals=3))
+        symeq_clust[0][j] = np.around(symeq_clust_site, decimals=3).tolist()
     symeq_clust[0].sort(key=lambda x: (x[0], x[1], x[2]))
 
     return symeq_clust
@@ -197,13 +184,12 @@ def find_eq_clust(sym_list, clust):
         return symeq_clust_list
 
 
-def find_eq_spec_seq(spec, clust, pntsym, spec_seq):
+def find_eq_spec_seq(spec, clust, pntsym):
     """
     find all equivalent species sequences in a given cluster
     :param spec: input species sequence in list like ['Fe', 'Ni', 'Cr']
     :param clust: site-sorted cluster from symeq_clust_list
     :param pntsym: point symmetry for the cluster
-    :param spec_seq: species order like ['Fe', 'Ni', 'Cr']
     :return: the first item in the sorted list of equivalent species sequences
     """
     if len(spec) == 1:
@@ -212,10 +198,6 @@ def find_eq_spec_seq(spec, clust, pntsym, spec_seq):
     elif len(spec) == 2:
         spec.sort()
         return ', '.join(map(str, spec))
-        # new_spec = ''
-        # for i in range(2):
-        #     new_spec = new_spec + str(spec_seq.index(spec[i]))
-        # return new_spec
     elif len(spec) >= 3:
         coords = clust[0]
         new_spec_list = []
@@ -236,10 +218,9 @@ def find_eq_spec_seq(spec, clust, pntsym, spec_seq):
         new_clust_list = [x for n, x in enumerate(new_clust_list) if x not in new_clust_list[:n]]
         for i in range(len(new_clust_list)):
             new_clust = new_clust_list[i]
-            sort_coord_dist(new_clust)
+            sort_coord_dist(new_clust)  # sort by distance to the right spec sequence
             new_spec = []
             for j in range(len(new_clust)):
-                # new_spec = new_spec + str(spec_seq.index(new_clust[j][3]))
                 new_spec.append(str(new_clust[j][3]))
             new_spec = ', '.join(map(str, new_spec))
             new_spec_list.append(new_spec)
@@ -250,7 +231,7 @@ def find_eq_spec_seq(spec, clust, pntsym, spec_seq):
 def find_eq_spec_list(spec, clust, pntsym, spec_seq):
     """
     find all equivalent species sequences in a given cluster
-    :param spec: input species sequence
+    :param spec: input species sequence like []
     :param clust: site-sorted cluster from symeq_clust_list
     :param pntsym: point symmetry for the cluster
     :param spec_seq: species order like ['Fe', 'Ni', 'Cr']
@@ -260,7 +241,6 @@ def find_eq_spec_list(spec, clust, pntsym, spec_seq):
     new_spec_list = []
     if len(spec) == 1:
         new_spec_list = [str(spec_seq.index(spec[0]))]
-        # new_spec_list = [str(spec[0])]
     elif len(spec) == 2:
         if spec[0] == spec[1]:
             new_spec = []
@@ -299,11 +279,10 @@ def find_eq_spec_list(spec, clust, pntsym, spec_seq):
         for i in range(len(new_clust_list)):
             new_spec = []
             new_clust = new_clust_list[i]
-            sort_coord_dist(new_clust)
+            sort_coord_dist(new_clust)  # sort by distance to the right spec sequence
             for j in range(len(new_clust)):
                 new_spec.append(str(spec_seq.index(new_clust[j][3])))
-            new_spec = ', '.join(map(str, new_spec))
-            new_spec_list.append(new_spec)
+            new_spec_list.append(', '.join(map(str, new_spec)))
     new_spec_list = [x for n, x in enumerate(new_spec_list) if x not in new_spec_list[:n]]
     new_spec_list.sort()
     return new_spec_list

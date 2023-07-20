@@ -1,6 +1,6 @@
 import symop
-import copy
 import json
+import yaml
 import numpy as np
 from sklearn.linear_model import Ridge
 from sklearn.linear_model import Lasso
@@ -9,15 +9,40 @@ from sklearn.linear_model import RidgeCV
 from sklearn.linear_model import ElasticNetCV
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import KFold
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import normalize
 from sklearn.utils import resample
 
-n = 1000
-alpha_range = [-7, 2]
+with open('param_in', 'r') as stream:
+    param = yaml.safe_load(stream)
+n = int(param['sample_times'])
+sample_ratio = float(param['sample_ratio'])
+kfold = int(param['kfold'])
+alpha_range = param['alpha_range']
+l1 = param['l1_ratio']
+coef_tol = float(param['convergence'])
+kf = KFold(n_splits=kfold, shuffle=True, random_state=123456)
 alpha_cv = np.logspace(alpha_range[0], alpha_range[1], num=100)
-l1 = [.4, .5, .6, .7, .9]
-kf = KFold(n_splits=10, shuffle=True, random_state=123)
+
+
+def all_data_fit(count, enrg):
+    """
+    Lasso fitting to all data
+    :param count: energy list
+    :param enrg: count list containing clusters, decorations, and counts
+    :return: list of ECIs
+    """
+    attr_list = []
+    coef_list = []
+    model = LassoCV(alphas=alpha_cv, cv=kf, max_iter=1000000000, tol=coef_tol)
+    model.fit(count, enrg)
+    coef_list.append(model.intercept_)
+    coef_list.extend(model.coef_.tolist())
+    rmse = np.sqrt(mean_squared_error(model.predict(count), enrg))
+    score = model.score(count, enrg)
+    coef_num = np.sum(model.coef_ != 0)
+    print(model.alpha_, rmse, score, coef_num, flush=True)
+    attr_list.extend([model.alpha_, rmse, score, float(coef_num)])
+
+    return coef_list
 
 
 def ridge_fit(count, enrg):
@@ -28,11 +53,12 @@ def ridge_fit(count, enrg):
     :return: list of ECIs
     """
     # bootstrap ridge
-    print('Ridge: alpha, rmse, score, coef_num', flush=True)
+    sample_size = round(sample_ratio * len(enrg))
     attr_list = [[] for _ in range(n)]
     coef_list = [[] for _ in range(n)]
+    print('Ridge: alpha, rmse, score, coef_num', flush=True)
     for i in range(n):
-        x, y = resample(count, enrg, n_samples=250, random_state=i)
+        x, y = resample(count, enrg, n_samples=sample_size, random_state=i)
         model = RidgeCV(alphas=alpha_cv, cv=kf)
         model.fit(x, y)
         coef_list[i].append(model.intercept_)
@@ -59,12 +85,13 @@ def lasso_fit(count, enrg):
     :return: list of ECIs
     """
     # bootstrap lasso
-    print('alpha, rmse, score, coef_num', flush=True)
+    sample_size = round(sample_ratio * len(enrg))
     coef_list = [[] for _ in range(n)]
     attr_list = [[] for _ in range(n)]
+    print('alpha, rmse, score, coef_num', flush=True)
     for i in range(n):
-        x, y = resample(count, enrg, n_samples=250, random_state=i)
-        model = LassoCV(alphas=alpha_cv, cv=kf, max_iter=10000000, tol=1e-5)
+        x, y = resample(count, enrg, n_samples=sample_size, random_state=i)
+        model = LassoCV(alphas=alpha_cv, cv=kf, max_iter=1000000000, tol=coef_tol)
         model.fit(x, y)
         coef_list[i].append(model.intercept_)
         coef_list[i].extend(model.coef_.tolist())
@@ -91,12 +118,13 @@ def eln_fit(count, enrg):
     :return: list of ECIs
     """
     # bootstrap elasticnet
-    print('Eln: alpha, l1_ratio, rmse, score, coef_num', flush=True)
+    sample_size = round(sample_ratio * len(enrg))
     attr_list = [[] for _ in range(n)]
     coef_list = [[] for _ in range(n)]
+    print('Eln: alpha, l1_ratio, rmse, score, coef_num', flush=True)
     for i in range(n):
-        x, y = resample(count, enrg, n_samples=250, random_state=i)
-        model = ElasticNetCV(alphas=alpha_cv, cv=kf, max_iter=10000000, tol=1e-5, l1_ratio=l1)
+        x, y = resample(count, enrg, n_samples=sample_size, random_state=i)
+        model = ElasticNetCV(alphas=alpha_cv, cv=kf, max_iter=1000000000, tol=coef_tol, l1_ratio=l1)
         model.fit(x, y)
         coef_list[i].append(model.intercept_)
         coef_list[i].extend(model.coef_.tolist())
@@ -115,54 +143,62 @@ def eln_fit(count, enrg):
     return coef_mean
 
 
-def write_eci(symeq_clust_list, deco_list, eci_list, pntsym_list, spec_seq):
+def write_eci(name, symeq_clust_list, deco_list, eci_list, pntsym_list, spec_seq):
     """
     write the clusters and ecis as a rule file for the magnetic MC simulation
-    :param symeq_clust_list:
-    :param deco_list:
-    :param eci_list:
-    :param pntsym_list:
-    :param spec_seq
+    :param name: name of output file
+    :param symeq_clust_list: all symmetry equivalent clusters
+    :param deco_list: decoration list from count list
+    :param eci_list: eci list from fitting
+    :param pntsym_list: all point symmetry operations for the given clusters
+    :param spec_seq: species order like ['Fe', 'Ni', 'Cr']
     :return: a file like this
             #
-            Motif= 0, 0, 0 : 1, 0, 0 : 0, 1, 0
-            Deco= 0, 0, 0 : 1, 1, 1 : 0, 1, 1 : 1, 0, 0 : 2, 2, 1
-            Type= 0, 0, 0, 0, 0
-            Enrg = -0.002, 0.01, -0.025, -0.012, 1.1
+            Type : 1
+            Motif :
+            0, 0, 0 : 0, 1, 0
+            0, 0, 0 : 0, -1, 0
+            Deco : 0, 0 : 1, 1 : 0, 1 : 2, 1
+            Enrg : -0.003 : 0.02 : -0.02 : -0.01
             #
-            Motif= 0, 0, 0 : 0, 1, 0
-            Deco= 0, 0 : 1, 1 : 0, 1 : 2, 1
-            Type= 1, 1, 0, 0
-            Enrg = -0.003, 0.02, -0.02, -0.01
+            Type : 0
+            Motif :
+            0, 0, 0 : 1, 0, 0 : 0, 1, 0
+            0, 0, 0 : -1, 0, 0 : 0, -1, 0
+            Deco : 0, 0, 0 : 1, 1, 1 : 0, 1, 1 : 1, 0, 0 : 2, 2, 1
+            Enrg : -0.002 : 0.01 : -0.025 : -0.012 : 1.1
     """
-    output = open('MC_rules', 'w')
-    output.write('# \n')
+    output = open(name, 'w')
     output.write('Motif : intercept \n')
-    output.write('Enrg : ' + str(eci_list[0]) + '\n')
+    output.write('Enrg : ' + str(eci_list[0]) + '\n#')
     for i in range(len(symeq_clust_list)):
         start = 0
         for k in range(0, i):
             start = start + len(deco_list[k])
+        # multiplicity = len(symeq_clust_list[i])
+        deco = deco_list[i]
+        spin = symeq_clust_list[i][0][2][0]
+        enrg_list = []
+        output.write('\nType : ' + str(spin))
+        output.write('\nMotif :\n')
         for j in range(len(symeq_clust_list[i])):
             clust = symeq_clust_list[i][j]
             motif = clust[0]
-            deco = deco_list[i]
-            spin = symeq_clust_list[i][j][2][0]
-            enrg_list = []
-            output.write('# \n')
-            output.write('Motif')
-            for k in range(len(motif)):
-                output.write(' : ' + ', '.join(map(str, motif[k])) )
-            output.write('\nDeco')
-            for k in range(len(deco)):
-                spec_list = symop.find_eq_spec_list(deco[k], clust, pntsym_list[i][j], spec_seq)
-                enrg = [eci_list[start + k + 1]] * len(spec_list)
-                enrg_list.extend(enrg)
-                for m in range(len(spec_list)):
-                    output.write(' : ' + str(spec_list[m]))
-            output.write('\nType : ' + str(spin))
-            output.write('\nEnrg')
-            for k in range(len(enrg_list)):
-                output.write(' : ' + str(enrg_list[k]))
-            output.write('\n')
+            size = len(motif)
+            for k in range(size-1):
+                output.write(', '.join(map(str, motif[k])) + ' : ')
+            output.write(', '.join(map(str, motif[size-1])) + '\n')
+        # output.write('\nMultiplicity : ' + str(multiplicity))
+        output.write('Deco')
+        for k in range(len(deco)):
+            spec_list = symop.find_eq_spec_list(deco[k], symeq_clust_list[i][0], pntsym_list[i][0], spec_seq)
+            enrg = [eci_list[start + k + 1]] * len(spec_list)
+            enrg_list.extend(enrg)
+            for m in range(len(spec_list)):
+                output.write(' : ' + str(spec_list[m]))
+        output.write('\nEnrg')
+        for k in range(len(enrg_list)):
+            output.write(' : ' + str(enrg_list[k]))
+        output.write('\n#')
+
     output.close()
