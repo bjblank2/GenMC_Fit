@@ -83,7 +83,7 @@ if do_fit:
             spec_pntsym_list.append(pntsym_list)
     with open('all_eci_out', 'r') as filehandle:
         eci_list = json.load(filehandle)
-    cefit.write_eci('MC_rule', symeq_clust_list, deco_list, eci_list, spec_pntsym_list, species)
+    cefit.write_eci('CLUSTERS', symeq_clust_list, deco_list, eci_list, spec_pntsym_list, species)
 
     if fit_lasso:
         lasso_eci = cefit.lasso_fit(count, enrg)
@@ -94,7 +94,7 @@ if do_fit:
             symeq_clust_list = json.load(filehandle)
         with open('lasso_eci_out', 'r') as filehandle:
             eci_list = json.load(filehandle)
-        cefit.write_eci('MC_rule_lasso', symeq_clust_list, deco_list, eci_list, spec_pntsym_list, species)
+        cefit.write_eci('CLUSTERS_lasso', symeq_clust_list, deco_list, eci_list, spec_pntsym_list, species)
 
     if fit_ridge:
         ridge_eci = cefit.ridge_fit(count, enrg)
@@ -105,7 +105,7 @@ if do_fit:
             symeq_clust_list = json.load(filehandle)
         with open('ridge_eci_out', 'r') as filehandle:
             eci_list = json.load(filehandle)
-        cefit.write_eci('MC_rule_ridge', symeq_clust_list, deco_list, eci_list, spec_pntsym_list, species)
+        cefit.write_eci('CLUSTERS_ridge', symeq_clust_list, deco_list, eci_list, spec_pntsym_list, species)
 
     if fit_eln:
         eln_eci = cefit.eln_fit(count, enrg)
@@ -116,6 +116,6 @@ if do_fit:
             symeq_clust_list = json.load(filehandle)
         with open('eln_eci_out', 'r') as filehandle:
             eci_list = json.load(filehandle)
-        cefit.write_eci('MC_rule_eln', symeq_clust_list, deco_list, eci_list, spec_pntsym_list, species)
+        cefit.write_eci('CLUSTERS_eln', symeq_clust_list, deco_list, eci_list, spec_pntsym_list, species)
 
 print("--- %s seconds ---" % (time.time() - start_time))
