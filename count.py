@@ -34,26 +34,29 @@ def calc_dist(pnt1, pnt2):
 def scale_clust(clust):
     """
     Transform from unscaled Cartesian coordinates to scaled ones for a given cluster
-    :param clust: cluster from clust_list in the formate of [[coord_list], [dist_list], [spin]]
-    :return: scaled clust
+    :param clust: cluster from clust_list in the formate of [[coord_list], [dist_scale], [spin_flag]]
+    :return: clusters with scaled coordinates
     """
     size = len(clust[0])
     max_dist = 0
     scaled_clust = copy.deepcopy(clust)
-    for i in range(size):
-        for j in range(i, size):
-            dist = calc_dist(clust[0][i], clust[0][j])
-            if max_dist < dist:
-                max_dist = dist
-    if max_dist != 0:
-        scale = max(clust[1]) / max_dist
+    if clust[1][0] == 1:
+        return scaled_clust
     else:
-        scale = 0
-    for i in range(size):
-        for j in range(3):
-            scaled_clust[0][i][j] = scale * clust[0][i][j]
-
-    return scaled_clust
+        for i in range(size):
+            for j in range(i, size):
+                dist = calc_dist(clust[0][i], clust[0][j])
+                if max_dist < dist:
+                    max_dist = dist
+        if max_dist != 0:
+            scale = max(clust[1]) / max_dist
+        else:
+            scale = 0
+        for i in range(size):
+            for j in range(3):
+                scaled_clust[0][i][j] = scale * clust[0][i][j]
+        scaled_clust[1][0] = 1
+        return scaled_clust
 
 
 def frac_to_cart(frac_coord, basis):
@@ -163,9 +166,8 @@ def count_singlelattice(symeq_clust_list, pntsym_list, str_list, clust_list):
         count_list = copy.deepcopy(clust_list)
         for i in range(len(clust_list)):
             count_dict = {}
-            orig_clust = scale_clust(clust_list[i])  # transform clust from direct coord to Cartesian coord
-            pbc_clust = apply_pbc(orig_clust, str_dict)
-            spec = find_spec(pbc_clust, str_dict)
+            orig_clust = apply_pbc(clust_list[i], str_dict)  # apply PBCs
+            spec = find_spec(orig_clust, str_dict)
             if spec == ['empty']:
                 print('Cluster #', i + 1, 'is not present in Structure #', str_dict['CellName'])
             else:
