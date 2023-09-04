@@ -1,8 +1,8 @@
 # main
-do_count: False                          # define whether to count or not
+do_count: True                          # define whether to count or not
 do_fit: True                           # define whether to fit or not
 lat_in: 'lat.in'                        # name of input lattice file (can be any pymatgen readable format)
-data_file: 'test_FeNiCr'                # name of input structure metadata
+data_file: 'test_data'                # name of input structure metadata
 clust_in: 'cluster_in'                  # name of input cluster file
 species: ['Fe', 'Ni', 'Cr']             # list of input species
 fit_lasso: False                         # define fitting method
@@ -16,7 +16,7 @@ ep_enrg: [-8.09002441, -5.46867641, -9.09085382]    # endpoint energies
 # fit
 sample_times: 1000                      # bootstrap sampling times
 sample_ratio: 0.8                       # bootstrap sampling size over input data size
-kfold: 2                               # number of data splitting folds
+kfold: 10                               # number of data splitting folds
 alpha_range: [-6, 2]                    # range of alpha (need to test carefully)
 l1_ratio: [.4, .5, .6, .7, .9]          # range of l1_ratio in ElasticNet (need to test)
 convergence: 1e-5                       # tolerance for the coefficient optimization in Lasso/ElasticNet
