@@ -37,8 +37,8 @@ symeq_clust_list = []
 for orig_clust in clust_list:
     orig_clust = count.scale_clust(orig_clust)
     symeq_clust_list.append(symop.find_eq_clust(sym_list, orig_clust))
-# with open('symeq_clust_out', 'w') as filehandle:
-#     json.dump(symeq_clust_list, filehandle)
+with open('symeq_clust_out', 'w') as filehandle:
+    json.dump(symeq_clust_list, filehandle)
 
 if do_count:
     spec_pntsym_list = []
