@@ -5,7 +5,7 @@ lat_in: 'lat.in'                        # name of input lattice file (can be any
 data_file: 'test_data'                # name of input structure metadata
 clust_in: 'cluster_in'                  # name of input cluster file
 species: ['Fe', 'Ni', 'Cr']             # list of input species
-fit_lasso: False                         # define fitting method
+fit_lasso: False                         # define bootstrap fitting method
 fit_ridge: False
 fit_eln: False
 rescale_enrg: False                      # define fitting with rescaled energy or raw energy
