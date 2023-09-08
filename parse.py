@@ -129,7 +129,6 @@ def parse_count(count_out):
     deco_list = [[] for _ in count_list[0][1]]
     for i in range(len(count_list)):
         for j in range(len(count_list[i][1])):
-            print(count_list[i][1][j])
             key_name = list(count_list[i][1][j][4].keys())
             for deco in key_name:
                 if deco not in deco_list[j]:
