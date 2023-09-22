@@ -47,7 +47,7 @@ def all_data_fit(count, enrg):
 
 def ridge_fit(count, enrg):
     """
-    Lasso fitting to raw energy per atom
+    Ridge fitting to energy per atom
     :param enrg: energy list
     :param count: count list containing clusters, decorations, and counts
     :return: list of ECIs
@@ -69,9 +69,9 @@ def ridge_fit(count, enrg):
         print(model.alpha_, rmse, score, coef_num, flush=True)
         attr_list[i].extend([model.alpha_, rmse, score, float(coef_num)])
     coef_mean = np.mean(coef_list, axis=0)
-    with open('fit_ridge_coef', 'w') as filehandle:
+    with open('fit_coef_ridge', 'w') as filehandle:
         json.dump(coef_list, filehandle)
-    with open('fit_ridge_attr', 'w') as filehandle:
+    with open('fit_attr_ridge', 'w') as filehandle:
         json.dump(attr_list, filehandle)
 
     return coef_mean
@@ -79,7 +79,7 @@ def ridge_fit(count, enrg):
 
 def lasso_fit(count, enrg):
     """
-    Lasso fitting to energy above hull
+    Lasso fitting to energy per atom
     :param enrg: energy list
     :param count: count list containing clusters, decorations, and counts
     :return: list of ECIs
@@ -102,9 +102,9 @@ def lasso_fit(count, enrg):
         attr_list[i].extend([model.alpha_, rmse, score, float(coef_num)])
     coef_mean = np.mean(coef_list, axis=0)
     print('# of lasso selected features', np.sum(coef_mean != 0), flush=True)
-    with open('fit_lasso_coef', 'w') as filehandle:
+    with open('fit_coef_lasso', 'w') as filehandle:
         json.dump(coef_list, filehandle)
-    with open('fit_lasso_attr', 'w') as filehandle:
+    with open('fit_attr_lasso', 'w') as filehandle:
         json.dump(attr_list, filehandle)
 
     return coef_mean
@@ -112,7 +112,7 @@ def lasso_fit(count, enrg):
 
 def eln_fit(count, enrg):
     """
-    ElasticNet fitting to raw energy per atom
+    ElasticNet fitting to energy per atom
     :param enrg: energy list
     :param count: count list containing clusters, decorations, and counts
     :return: list of ECIs
@@ -135,9 +135,9 @@ def eln_fit(count, enrg):
         attr_list[i].extend([model.alpha_, model.l1_ratio_, rmse, score, float(coef_num)])
     coef_mean = np.mean(coef_list, axis=0)
     print('# of eln selected features', np.sum(coef_mean != 0), flush=True)
-    with open('fit_eln_coef', 'w') as filehandle:
+    with open('fit_coef_eln', 'w') as filehandle:
         json.dump(coef_list, filehandle)
-    with open('fit_eln_attr', 'w') as filehandle:
+    with open('fit_attr_eln', 'w') as filehandle:
         json.dump(attr_list, filehandle)
 
     return coef_mean
