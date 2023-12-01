@@ -168,13 +168,75 @@ def count_singlelattice(symeq_clust_list, pntsym_list, str_list, clust_list):
         for i in range(len(clust_list)):
             count_dict = {}
             orig_clust = apply_pbc(clust_list[i], str_dict)  # apply PBCs
-            spec = find_spec(orig_clust, str_dict)
-            if spec == ['empty']:
-                print('Cluster #', i + 1, 'is not present in Structure', str_dict['CellName'])
-            else:
+            # spec = find_spec(orig_clust, str_dict)
+            # if spec == ['empty']:
+            #     print('Cluster #', i + 1, 'is not present in Structure', str_dict['CellName'])
+            #     print('Check your input file carefully!')
+            # else:
+            symeq_clust = symeq_clust_list[i]
+            multiplicity = len(symeq_clust)
+            count_list[i].append({'Multiplicity': int(multiplicity/len(orig_clust[0]))})
+            for j in range(len(str_dict['LatPnt'])):
+                for k in range(multiplicity):
+                    old_clust = symeq_clust[k]
+                    vect = np.subtract.reduce([str_dict['LatPnt'][j], [0, 0, 0]], axis=0)
+                    new_clust = copy.deepcopy(old_clust)
+                    for x in range(len(old_clust[0])):
+                        new_clust[0][x] = np.sum([old_clust[0][x], vect], axis=0)
+                    pbc_clust = apply_pbc(new_clust, str_dict)
+                    spec = find_spec(pbc_clust, str_dict)
+                    if spec == ['empty']:
+                        vac_flag = True
+                    if spec != ['empty']:
+                        # find the only true equivalent sequence
+                        spec = symop.find_eq_spec_seq(list(spec), old_clust, pntsym_list[i][k])
+                        if pbc_clust[2][0] == 0:  # chem term
+                            if str(spec) in count_dict.keys():
+                                count_dict[str(spec)] += 1
+                            else:
+                                count_dict[str(spec)] = 1
+                        elif pbc_clust[2][0] == 1:  # spin term
+                            spin = find_spin(pbc_clust, str_dict)
+                            if str(spec) in count_dict.keys():
+                                # if len(pbc_clust[1]) == 1:
+                                #     count_dict[str(spec)] += abs(spin)
+                                # else:
+                                #     count_dict[str(spec)] += spin
+                                count_dict[str(spec)] += spin
+                            else:
+                                # if len(pbc_clust[1]) == 1:
+                                #     count_dict[str(spec)] = abs(spin)
+                                # else:
+                                #     count_dict[str(spec)] = spin
+                                count_dict[str(spec)] = spin
+            for keys in count_dict:
+                values = count_dict[keys]
+                count_dict[keys] = np.around(values/(str_dict['AtomSum']*len(orig_clust[0])), decimals=5)
+            count_list[i].append(count_dict)
+        count_list_all.append([str_dict['CellName'], count_list])
+        if vac_flag:
+            print('Empty cluster in Structure', str_dict['CellName'], "! Check input if you don't expect vacancy!")
+
+    return count_list_all
+
+
+def count_spin_pair(symeq_clust_list, pntsym_list, str_list, clust_list):
+    """
+    count the number of each cluster for each structure with single lattice
+    :param symeq_clust_list: list of symmetry operation based on the input lattice file defined like ATAT
+    :param pntsym_list: list of point symmetry operation for each symmetry equivalent cluster
+    :param str_list: parsed DFT data list
+    :param clust_list: parsed cluster list
+    :return: list of the count number (count_list)
+    """
+    str_list = apply_basis(str_list)  # transform str from direct coord to Cartesian coord
+    count_list_all = []
+    for i in range(len(clust_list)):
+        if clust_list[i][2][0] == 1:
+            count_dict = {}
+            for str_dict in str_list:
                 symeq_clust = symeq_clust_list[i]
                 multiplicity = len(symeq_clust)
-                count_list[i].append({'Multiplicity': int(multiplicity/len(orig_clust[0]))})
                 for j in range(len(str_dict['LatPnt'])):
                     for k in range(multiplicity):
                         old_clust = symeq_clust[k]
@@ -184,36 +246,14 @@ def count_singlelattice(symeq_clust_list, pntsym_list, str_list, clust_list):
                             new_clust[0][x] = np.sum([old_clust[0][x], vect], axis=0)
                         pbc_clust = apply_pbc(new_clust, str_dict)
                         spec = find_spec(pbc_clust, str_dict)
-                        if spec == ['empty']:
-                            vac_flag = True
                         if spec != ['empty']:
-                            # find the only true equivalent sequence
                             spec = symop.find_eq_spec_seq(list(spec), old_clust, pntsym_list[i][k])
-                            if pbc_clust[2][0] == 0:  # chem term
-                                if str(spec) in count_dict.keys():
-                                    count_dict[str(spec)] += 1
-                                else:
-                                    count_dict[str(spec)] = 1
-                            elif pbc_clust[2][0] == 1:  # spin term
-                                spin = find_spin(pbc_clust, str_dict)
-                                if str(spec) in count_dict.keys():
-                                    # if len(pbc_clust[1]) == 1:
-                                    #     count_dict[str(spec)] += abs(spin)
-                                    # else:
-                                    #     count_dict[str(spec)] += spin
-                                    count_dict[str(spec)] += spin
-                                else:
-                                    # if len(pbc_clust[1]) == 1:
-                                    #     count_dict[str(spec)] = abs(spin)
-                                    # else:
-                                    #     count_dict[str(spec)] = spin
-                                    count_dict[str(spec)] = spin
-            for keys in count_dict:
-                values = count_dict[keys]
-                count_dict[keys] = np.around(values/(str_dict['AtomSum']*len(orig_clust[0])), decimals=5)
-            count_list[i].append(count_dict)
-        count_list_all.append([str_dict['CellName'], count_list])
-        if vac_flag:
-            print('Empty cluster in Structure', str_dict['CellName'], "! Check input if you don't expect vacancy!")
+                            spin = find_spin(pbc_clust, str_dict)
+                            if str(spec) in count_dict.keys():
+                                count_dict[str(spec)][int(spin+1)] += 1
+                            else:
+                                count_dict[str(spec)] = [0, 0, 0]
+                                count_dict[str(spec)][int(spin + 1)] = 1
+            count_list_all.append([i, count_dict])
 
     return count_list_all

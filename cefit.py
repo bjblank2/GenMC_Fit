@@ -2,13 +2,14 @@ import symop
 import json
 import yaml
 import numpy as np
-from sklearn.linear_model import Ridge
-from sklearn.linear_model import Lasso
+from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import LassoCV
 from sklearn.linear_model import RidgeCV
 from sklearn.linear_model import ElasticNetCV
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import KFold
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import normalize
 from sklearn.utils import resample
 
 with open('param_in', 'r') as stream:
@@ -23,14 +24,34 @@ kf = KFold(n_splits=kfold, shuffle=True, random_state=123456)
 alpha_cv = np.logspace(alpha_range[0], alpha_range[1], num=100)
 
 
-def all_data_fit(count, enrg):
+def all_data_norm(count, enrg):
     """
-    Lasso fitting to all data
-    :param count: energy list
-    :param enrg: count list containing clusters, decorations, and counts
+    Normalized lasso fitting to all data
+    :param enrg: energy list
+    :param count: count list containing clusters, decorations, and counts
     :return: list of ECIs
     """
-    attr_list = []
+    coef_list = []
+    count_norm = normalize(count)
+    model = LassoCV(alphas=alpha_cv, cv=kf, max_iter=1000000000, tol=coef_tol)
+    model.fit(count_norm, enrg)
+    coef_list.append(model.intercept_)
+    coef_list.extend(model.coef_.tolist())
+    rmse = np.sqrt(mean_squared_error(model.predict(count_norm), enrg))
+    score = model.score(count_norm, enrg)
+    coef_num = np.sum(model.coef_ != 0)
+    print(model.alpha_, rmse, score, coef_num, flush=True)
+
+    return coef_list
+
+
+def all_data_lasso(count, enrg):
+    """
+    Lasso fitting to all data
+    :param enrg: energy list
+    :param count: count list containing clusters, decorations, and counts
+    :return: list of ECIs
+    """
     coef_list = []
     model = LassoCV(alphas=alpha_cv, cv=kf, max_iter=1000000000, tol=coef_tol)
     model.fit(count, enrg)
@@ -38,9 +59,30 @@ def all_data_fit(count, enrg):
     coef_list.extend(model.coef_.tolist())
     rmse = np.sqrt(mean_squared_error(model.predict(count), enrg))
     score = model.score(count, enrg)
+    cvs = model.mse_path_.mean(axis=1).min()
     coef_num = np.sum(model.coef_ != 0)
-    print(model.alpha_, rmse, score, coef_num, flush=True)
-    attr_list.extend([model.alpha_, rmse, score, float(coef_num)])
+    print(model.alpha_, rmse, score, coef_num, cvs, flush=True)
+
+    return coef_list
+
+
+def all_data_loocv_ridge(count, enrg):
+    """
+    Ridge LOO CV fitting to all data
+    :param enrg: energy list
+    :param count: count list containing clusters, decorations, and counts
+    :return: list of ECIs
+    """
+    coef_list = []
+    model = RidgeCV(alphas=alpha_cv)
+    model.fit(count, enrg)
+    coef_list.append(model.intercept_)
+    coef_list.extend(model.coef_.tolist())
+    rmse = np.sqrt(mean_squared_error(model.predict(count), enrg))
+    score = model.score(count, enrg)
+    cvs = model.mse_path_.mean(axis=1).min()
+    coef_num = np.sum(model.coef_ != 0)
+    print(model.alpha_, rmse, score, coef_num, cvs, flush=True)
 
     return coef_list
 
@@ -56,7 +98,7 @@ def ridge_fit(count, enrg):
     sample_size = round(sample_ratio * len(enrg))
     attr_list = [[] for _ in range(n)]
     coef_list = [[] for _ in range(n)]
-    print('Ridge: alpha, rmse, score, coef_num', flush=True)
+    print('Ridge: alpha, rmse, score, coef_num, cvs', flush=True)
     for i in range(n):
         x, y = resample(count, enrg, n_samples=sample_size, random_state=i)
         model = RidgeCV(alphas=alpha_cv, cv=kf)
@@ -65,9 +107,10 @@ def ridge_fit(count, enrg):
         coef_list[i].extend(model.coef_.tolist())
         rmse = np.sqrt(mean_squared_error(model.predict(count), enrg))
         score = model.score(count, enrg)
+        cvs = model.mse_path_.mean(axis=1).min()
         coef_num = np.sum(model.coef_ != 0)
-        print(model.alpha_, rmse, score, coef_num, flush=True)
-        attr_list[i].extend([model.alpha_, rmse, score, float(coef_num)])
+        print(model.alpha_, rmse, score, coef_num, cvs, flush=True)
+        attr_list[i].extend([model.alpha_, rmse, score, float(coef_num), cvs])
     coef_mean = np.mean(coef_list, axis=0)
     with open('fit_coef_ridge', 'w') as filehandle:
         json.dump(coef_list, filehandle)
@@ -88,7 +131,7 @@ def lasso_fit(count, enrg):
     sample_size = round(sample_ratio * len(enrg))
     coef_list = [[] for _ in range(n)]
     attr_list = [[] for _ in range(n)]
-    print('alpha, rmse, score, coef_num', flush=True)
+    print('alpha, rmse, score, coef_num, cvs', flush=True)
     for i in range(n):
         x, y = resample(count, enrg, n_samples=sample_size, random_state=i)
         model = LassoCV(alphas=alpha_cv, cv=kf, max_iter=1000000000, tol=coef_tol)
@@ -97,9 +140,10 @@ def lasso_fit(count, enrg):
         coef_list[i].extend(model.coef_.tolist())
         rmse = np.sqrt(mean_squared_error(model.predict(count), enrg))
         score = model.score(count, enrg)
+        cvs = model.mse_path_.mean(axis=1).min()
         coef_num = np.sum(model.coef_ != 0)
-        print(model.alpha_, rmse, score, coef_num, flush=True)
-        attr_list[i].extend([model.alpha_, rmse, score, float(coef_num)])
+        print(model.alpha_, rmse, score, coef_num, cvs, flush=True)
+        attr_list[i].extend([model.alpha_, rmse, score, float(coef_num), cvs])
     coef_mean = np.mean(coef_list, axis=0)
     print('# of lasso selected features', np.sum(coef_mean != 0), flush=True)
     with open('fit_coef_lasso', 'w') as filehandle:
@@ -130,9 +174,10 @@ def eln_fit(count, enrg):
         coef_list[i].extend(model.coef_.tolist())
         rmse = np.sqrt(mean_squared_error(model.predict(count), enrg))
         score = model.score(count, enrg)
+        cvs = model.mse_path_.mean(axis=1).min()
         coef_num = np.sum(model.coef_ != 0)
-        print(model.alpha_, model.l1_ratio_, rmse, score, coef_num, flush=True)
-        attr_list[i].extend([model.alpha_, model.l1_ratio_, rmse, score, float(coef_num)])
+        print(model.alpha_, model.l1_ratio_, rmse, score, coef_num, cvs, flush=True)
+        attr_list[i].extend([model.alpha_, model.l1_ratio_, rmse, score, float(coef_num), cvs])
     coef_mean = np.mean(coef_list, axis=0)
     print('# of eln selected features', np.sum(coef_mean != 0), flush=True)
     with open('fit_coef_eln', 'w') as filehandle:
