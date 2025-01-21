@@ -2,7 +2,7 @@
 do_count: True                                   # define whether to count or not
 do_fit: True                                     # define whether to fit or not
 lat_in: 'NiMnIn_Example/POSCAR'                  # name of input lattice file (can be any pymatgen readable format)
-data_file: 'NiMnIn_Example/NiMnIn_data'          # name of input structure metadata
+data_file: 'NiMnIn_Example/NiMnIn_dataset'       # name of input structure metadata
 clust_in: 'NiMnIn_Example/cluster_NiMnIn'        # name of input cluster file
 species: ['Ni', 'Mn', 'In']                      # list of input species
 fit_lasso: False                                 # define bootstrap fitting method
