@@ -34,9 +34,9 @@ GenMC_Fit is a Python-based component of the GenMC-MA toolkit, designed to param
 
 ## Input Files
 ### 1. **`param_in` File**
-This YAML file defines configuration options for GenMC_Fit. Below is an example structure:
+This file defines configuration options for GenMC_Fit. Below is an example structure:
 
-```yaml
+```
 lat_in: 'POSCAR'  # Path to the lattice structure file
 data_file: 'data_file.json'  # Path to compacted DFT dataset
 clust_in: 'cluster_in.json'  # Path to cluster definition file
