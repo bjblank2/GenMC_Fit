@@ -122,7 +122,7 @@ data_file: 'NiMnIn_data.txt'                # name of input structure metadata
 clust_in: 'cluster_in'                  # name of input cluster file
 species: ['Ni', 'Mn', 'In']             # list of input species
 fit_lasso: True                         # define fitting method
-fit_ridge: True
+fit_ridge: False
 fit_eln: False
 rescale_enrg: False                      # define fitting with rescaled energy or raw energy
 
@@ -140,11 +140,29 @@ python main.py
 ```
 Output: `count_out` (contains computed cluster counts).
 
-### Step 2: Parameter Fitting
+### Step 2: Try a New Regression
 Update `param_in`:
+Change `do_count` to False.
 ```yaml
-do_count: false
-do_fit: true
+# main
+do_count: False                          # define whether to count or not
+do_fit: True                           # define whether to fit or not
+lat_in: 'POSCAR'                        # name of input lattice file (can be any pymatgen readable format)
+data_file: 'NiMnIn_data.txt'                # name of input structure metadata
+clust_in: 'cluster_in'                  # name of input cluster file
+species: ['Ni', 'Mn', 'In']             # list of input species
+fit_lasso: False                         # define fitting method
+fit_ridge: True
+fit_eln: False
+rescale_enrg: False                      # define fitting with rescaled energy or raw energy
+
+# fit
+sample_times: 1000                      # bootstrap sampling times
+sample_ratio: 0.8                       # bootstrap sampling size over input data size
+kfold: 10                               # number of data splitting folds
+alpha_range: [-6, 2]                    # range of alpha (need to test carefully)
+l1_ratio: [.4, .5, .6, .7, .9]          # range of l1_ratio in ElasticNet (need to test)
+convergence: 1e-5                       # tolerance for the coefficient optimization in Lasso/ElasticNet
 ```
 Run the script:
 ```bash
